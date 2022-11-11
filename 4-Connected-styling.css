@@ -48,10 +48,6 @@ body{
     grid-template-columns: 1fr;
 }
 
-.line:hover{
-    background-color: var(--pointSelection) !important;
-}
-
 .point{
     width: 104px;
     height: 104px;
