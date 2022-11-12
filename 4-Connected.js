@@ -22,8 +22,8 @@ let [human, robot, easy, meduim, hard, start] = [true, false, true, false, false
 //AI
 
 let winner = 0;
-let dx = [0, 0, 1, -1, -1, 1, -1];
-let dy = [-1, 1, -1, 1, -1, 1, 0];
+let dx = [0, 0, 1, -1, -1, 1, -1, 1];
+let dy = [-1, 1, -1, 1, -1, 1, 0, 0];
 
 const isValid = (x, y) => {
     return x >= 0 && x < 6 && y >= 0 && y < 7;
@@ -49,13 +49,179 @@ const check = (x, y, state) => {
 
 
 
+const calc = (x, y, color, state, visited) => {
+    if (state[x][y] != color && state[x][y] != 0) return 0;
+    let res = 0;
+    for (let i = 0; i < 8; i++) {
+        let newX = x;
+        let newY = y;
+        for (let j = 0; j < 3; j++) {
+            newX += dx[i];
+            newY += dy[i];
+            if (!isValid(newX, newY)) break;
+            if (state[newX][newY] != color && state[newX][newY] != 0) break;
+            if (j == 2 && !visited[newX][newY]) res++;
+        }
+    }
+    visited[x][y] = true;
+    return res;
+}
+
+const evaluation = (state) => {
+    let visited = new Array(6);
+    for (let i = 0; i < 6; i++) {
+        visited[i] = new Array(7);
+    }
+
+    for (let i = 0; i < 6; i++) {
+        for (let j = 0; j < 7; j++) {
+            visited[i][j] = false;
+        }
+    }
+    let win2 = 0;
+    for (let i = 0; i < 6; i++) {
+        for (let j = 0; j < 7; j++) {
+            if (state[i][j] != 0)
+                win2 += calc(i, j, 2, state, visited);
+        }
+    }
+
+    let win1 = 0;
+    for (let i = 0; i < 6; i++) {
+        for (let j = 0; j < 7; j++) {
+            visited[i][j] = false;
+        }
+    }
+    for (let i = 0; i < 6; i++) {
+        for (let j = 0; j < 7; j++) {
+            if (state[i][j] != 0)
+                win1 += calc(i, j, 1, state, visited);
+        }
+    }
+
+    return win2 - win1;
+}
+
+const isFinalState = (state) => {
+    for (let i = 0; i < 7; i++) {
+        if (state[5][i] == 0) return false; // if have column not full
+    }
+    return true;
+}
+
+const check_all = (state) => {
+    let j;
+    for (let i = 0; i < 6; i++) {
+        for (j = 0; j < 7; j++) {
+            let f = check(i, j, state);
+            if (f != 0) return [f, j];
+        }
+    }
+    return [0, 0];
+}
+
+const alphabeta = (state, depth, alpha, beta, maximizingPlayer) => {
+
+    let res = check_all(state);
+    if (depth == 0 || isFinalState(state) || res[0] != 0) {
+        if (res[0] == 0)
+            return [res[1], evaluation(state)];
+        else {
+            if (res[0] == 2) return [res[1], Infinity];
+            else if (res[0] == 1) return [res[1], -Infinity];
+        }
+    }
+
+    if (maximizingPlayer) {
+        let v = [-1, -Infinity]; // index, value
+        for (let i = 0; i < 7; i++) {
+            if (state[5][i] == 0) { // possibe child
+                // let child = Object.assign({}, state);
+                let child = JSON.parse(JSON.stringify(state));
+                for (let j = 0; j < 6; j++) {
+                    if (child[j][i] == 0) {
+                        child[j][i] = 2;
+                        break;
+                    }
+                }
+                let f = alphabeta(child, depth - 1, alpha, beta, false);
+                if (f[1] > v[1]) {
+                    v[0] = i;
+                    v[1] = f[1];
+                }
+                alpha = Math.max(alpha, v[1]);
+                if (beta <= alpha) {
+                    break;
+                }
+            }
+        }
+        return v;
+    }
+    else {
+        let v = [-1, Infinity]; // index, value
+        for (let i = 0; i < 7; i++) {
+            if (state[5][i] == 0) { // possibe child
+                //let child = Object.assign({}, state);
+                let child = JSON.parse(JSON.stringify(state));
+                for (let j = 0; j < 6; j++) {
+                    if (child[j][i] == 0) {
+                        child[j][i] = 1;
+                        break;
+                    }
+                }
+                let f = alphabeta(child, depth - 1, alpha, beta, true);
+                if (f[1] < v[1]) {
+                    v[0] = i;
+                    v[1] = f[1];
+                }
+                beta = Math.min(beta, v[1]);
+                if (beta <= alpha) {
+                    break;
+                }
+            }
+        }
+        return v;
+    }
+}
 
 
+const hard_mode = () => {
+    let [index, value] = alphabeta(matrix, 4, -Infinity, Infinity, true);
+    console.log(index);
+    setIndex(index);
+}
 
+const easy_mode = () => {
+    let found = false;
+    let rand_index;
+    while (!found) {
+        rand_index = Math.floor(Math.random() * 7);
+        if (matrix[5][rand_index] == 0) {
+            found = true;
+        }
+    }
+    setIndex(rand_index);
+}
 
+let swap = false;
 
+const meduim_mode = () => {
+    swap = !swap;
+    if (swap) {
+        hard_mode();
+    } else
+        easy_mode();
+}
 
-
+const robot_turn = () => {
+    if (hard) {
+        hard_mode();
+    } else if (easy) {
+        easy_mode();
+    } else if (meduim) {
+        meduim_mode();
+    }
+}
 
 const go_default = (s = false, h = true, e = true, m = false) => {
     if (!s) {
@@ -146,12 +312,11 @@ const setIndex = (index) => {
         }
     }
     if (i < 6) {
-        if(p == 2) p = 1;
-        else p = 2;   
+        if (p == 2) p = 1;
+        else p = 2;
         fill(5 - i, index, p);
         winner = check(i, index, matrix);
     }
-
 }
 
 const start_action = (clear) => {
@@ -166,6 +331,7 @@ const start_action = (clear) => {
     start_timer(start);
     go_default(start, human, easy, meduim);
     p = 2;
+    winner = 0;
 }
 
 
@@ -215,25 +381,29 @@ difficulty_section.children[2].addEventListener("click", function () {
 
 for (let i = 0; i < 7; i++) {
     lines[i].addEventListener("click", function () {
-        if (start && human){
-            setIndex($(this).index());
+        if (start) {
+            if (human)
+                setIndex($(this).index());
+            else if (!human && winner == 0) {
+                setIndex($(this).index());
+                if (winner == 0)
+                    robot_turn();
+            }
             if (winner != 0)
                 start_action(false);
-            }
-        else if (start && !human)
-            setIndex($(this).index(), 1);
+        }
     });
 
     lines[i].addEventListener("mouseover", function () {
-        if(start){
+        if (start) {
             if (matrix[5][i] == 0)
                 lines[i].style.backgroundColor = "var(--pointSelection)";
             else
                 lines[i].style.backgroundColor = "var(--robot)";
-            }
-    
+        }
+
     });
-    
+
     lines[i].addEventListener("mouseout", function () {
         lines[i].style.backgroundColor = "var(--background)";
     });
