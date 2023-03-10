@@ -1,47 +1,53 @@
-//for the look
-const human_button = document.getElementsByClassName("vs-human")[0];
-const robot_button = document.getElementsByClassName("vs-robot")[0];
-const start_button = document.getElementsByClassName("start")[0];
+
+
+
+const human_button       = document.getElementsByClassName("vs-human")[0];
+const robot_button       = document.getElementsByClassName("vs-robot")[0];
+const start_button       = document.getElementsByClassName("start")[0];
 const difficulty_section = document.getElementsByClassName("difficulty-section")[0];
-const time = document.getElementsByClassName("time")[0];
-const lines = document.getElementsByClassName("line");
-const AI = 2;
-const HUMAN = 1;
-let pll = AI;
-let game_time = [0, 0];
-let count_down_interval;
-let start_ind = true;
-let matrix = new Array(6);
-let winning_chain = [[0, 0], [0, 0], [0, 0], [0, 0]];
+const time               = document.getElementsByClassName("time")[0];
+const lines              = document.getElementsByClassName("line");
+
+const ROW    = 6;
+const COLUMN = 7;
+const TIE    = 0;
+const EMPTY  = 0;
+const HUMAN  = 1;
+const AI     = 2;
+const EASY   = 2;
+const MEDIUM = 3;
+const HARD   = 4;
+
+let round            = AI;
+let start_indicator  = true;
 let blinking_counter = 6;
-let swap = 1;
-let animation_swap = 1;
-for (let i = 0; i < 6; i++) matrix[i] = new Array(7);
+let animation_swap   = 1;
+let game_time        = [0, 0];
+let winning_chain    = [[0, 0], [0, 0], [0, 0], [0, 0]];
+let count_down_interval;
+let interval;
+let player_swap = 1;
 
+let difficulty = HUMAN;
+let start      = false;
 
-console.log(window.innerHeight);
-console.log(window.innerHeight);
-
-for (let i = 0; i < 6; i++) for (let j = 0; j < 7; j++) matrix[i][j] = 0;
-
-let [human, robot, easy, meduim, hard, start] = [
-    true,
-    false,
-    true,
-    false,
-    false,
-    false,
-];
-
-//AI
-
-let winner = 0;
+//Directions
 let dx = [0, 0, 1, -1, -1, 1, -1, 1];
 let dy = [-1, 1, -1, 1, -1, 1, 0, 0];
-let turns = 0;
+let swap   = 1;
+let winner = 0;
 
-const isValid = (x, y) => {
-    return x >= 0 && x < 6 && y >= 0 && y < 7;
+//Deifne board and initialize it as empty board
+let board = new Array(ROW);
+for (let i = 0; i < ROW; i++) {
+    board[i] = new Array(COLUMN);
+    for (let j = 0; j < COLUMN; j++) {
+        board[i][j] = EMPTY;
+    }
+}
+
+const is_valid_point = (x, y) => {
+    return x >= 0 && x < ROW && y >= 0 && y < COLUMN;
 };
 
 const shift = (arr) => {
@@ -50,10 +56,10 @@ const shift = (arr) => {
     }
 }
 
-const check = (x, y, state) => {
-    let color = state[x][y];
+const check = (x, y, node) => {
+    let player = node[x][y];
     let count;
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 8; i++) { // loop in directions 
         if (i % 2 == 0) count = 0;
         else {
             count -= 1;
@@ -61,173 +67,140 @@ const check = (x, y, state) => {
         }
         let newX = x;
         let newY = y;
-        while (isValid(newX, newY) && state[newX][newY] == color && count < 4) {
+        while (is_valid_point(newX, newY) && node[newX][newY] == player && count < 4) {
             winning_chain[count] = [newX, newY];
             count++;
             newX += dx[i];
             newY += dy[i];
         }
-        if (count >= 4) return color;
+        if (count >= 4) return player;
     }
     return 0;
 };
 
-const calc_three = (x, y, state, color) => {
-    let count = 0;
-    for (let i = 0; i < 8; i++) {
-        let newX = x;
-        let newY = y;
-        for (let j = 0; j < 3; j++) {
-            newX += dx[i];
-            newY += dy[i];
-            if (!isValid(newX, newY)) break;
-            else if (j < 2 && state[newX][newY] != color) break;
-            else if (j == 2 && state[newX][newY] != 0) break;
-            else if (j == 2) count++;
-        }
+const eval_three_connect = (x, y, node, player) => {
+    let score = 0;
+    for(let i = 0; i < 8; i++) {
+        if (
+         is_valid_point(x + 3 * dx[i], y + 3 * dy[i]) &&
+         node[x + 1 * dx[i]][y + 1 * dy[i]] == player &&
+         node[x + 2 * dx[i]][y + 2 * dy[i]] == player &&
+         node[x + 3 * dx[i]][y + 3 * dy[i]] == 0
+        ) score += 100;
     }
-    return count;
+    return score;
 };
 
-const calc_two = (x, y, state, color) => {
-    let count = 0;
-    for (let i = 0; i < 8; i++) {
-        let newX = x;
-        let newY = y;
-        for (let j = 0; j < 2; j++) {
-            newX += dx[i];
-            newY += dy[i];
-            if (!isValid(newX, newY)) break;
-            else if (j < 1 && state[newX][newY] != color) break;
-            else if (j == 1 && state[newX][newY] != 0) break;
-            else if (j == 1) count++;
-        }
+const eval_two_connect = (x, y, node, player) => {
+    let score = 0;
+    for(let i = 0; i < 8; i++) {
+        if (
+         is_valid_point(x + 3 * dx[i], y + 3 * dy[i]) &&
+         node[x + 1 * dx[i]][y + 1 * dy[i]] == player &&
+         node[x + 2 * dx[i]][y + 2 * dy[i]] == 0
+        ) 
+        score++;
     }
-    return count;
+    return score;
 };
 
-const evaluation = (state) => {
-    let countR = 0;
-    let countB = 0;
-    for (let i = 0; i < 6; i++)
-        for (let j = 0; j < 7; j++) {
-            let color = state[i][j];
-            if (color == 0) continue;
-            for (let k = 0; k < 8; k++) {
-                if (
-                    isValid(i + 3 * dx[k], j + 3 * dy[k]) &&
-                    state[i + dx[k]][j + dy[k]] == color &&
-                    state[i + 2 * dx[k]][j + 2 * dy[k]] == color &&
-                    state[i + 3 * dx[k]][j + 3 * dy[k]] == 0
-                )
-                    if (color == AI) countR += 100;
-                    else countB += 100;
-                else if (
-                    isValid(i + 2 * dx[k], j + 2 * dy[k]) &&
-                    state[i + dx[k]][j + dy[k]] == color &&
-                    state[i + 2 * dx[k]][j + 2 * dy[k]] == 0
-                )
-                    if (color == AI) countR++;
-                    else countB++;
+const evaluation = (node) => {
+    let score_AI    = 0;
+    let score_Human = 0;
+    for (let i = 0; i < ROW; i++)
+        for (let j = 0; j < COLUMN; j++) {
+            let player = node[i][j];
+            if (player == EMPTY) continue;
+            else if(player == AI) {
+                score_AI    += eval_two_connect(i, j, node, AI) + eval_three_connect(i, j, node, AI);
+            }
+            else if(player == HUMAN) {
+                score_Human += eval_two_connect(i, j, node, HUMAN) + eval_three_connect(i, j, node, HUMAN);
             }
         }
-    return countR - countB;
-};
-const calc = (x, y, color, state, visited) => {
-    if (state[x][y] != color && state[x][y] != 0) return 0;
-    let res = 0;
-    for (let i = 0; i < 8; i++) {
-        let newX = x;
-        let newY = y;
-        for (let j = 0; j < 3; j++) {
-            newX += dx[i];
-            newY += dy[i];
-            if (!isValid(newX, newY)) break;
-            if (state[newX][newY] != color && state[newX][newY] != 0) break;
-            if (j == 2 && !visited[newX][newY]) res++;
-        }
-    }
-    visited[x][y] = true;
-    return res;
+    return score_AI - score_Human;
 };
 
-const is_game_over = (state) => {
-    for (let i = 0; i < 6; i++) {
-        for (let j = 0; j < 7; j++) {
-            let f = check(i, j, state);
+const is_available_column = (c, node) => {
+    return node[ROW - 1][c] == 0;
+}
+
+const add_to_column = (c, player,  node) => {
+    for(let i = 0; i < ROW; i++) {
+        if (node[i][c] == EMPTY) {
+            node[i][c] = player;
+            return node;
+        }
+    }
+}
+
+const is_game_over = (node) => {
+    for (let i = 0; i < ROW; i++) {
+        for (let j = 0; j < COLUMN; j++) {
+            let f = check(i, j, node);
             if (f != 0) return [1, f];
         }
     }
     for (let i = 0; i < 7; i++) {
-        if (state[5][i] == 0) return [0, 0];
+        if (is_available_column(i, node)) return [0, 0];
     }
     return [1, 0];
 };
 
-const alphabeta = (state, depth, alpha, beta, maximizingPlayer) => {
-    let [is_terminal, win] = is_game_over(state);
+const alphabeta = (node, depth, alpha, beta, maximizingPlayer) => {
+    let [is_terminal, win] = is_game_over(node);
 
     if (is_terminal) {
-        if (win == 0) return [-1, 0];
+        if (win == TIE)   return [-1, 0];
         if (win == HUMAN) return [-1, -99998 * Math.pow(10, depth)];
-        if (win == AI) return [-1, 99999 * Math.pow(10, depth)];
+        if (win == AI)    return [-1,  99999 * Math.pow(10, depth)];
     }
     if (depth == 0) {
-        return [-1, evaluation(state), 0];
+        return [-1, evaluation(node)];
     }
 
     if (maximizingPlayer) {
-        let v = [-1, -999980000]; // index, value, depth
+        let best = [-1, -999980000]; // index, value
         for (let i = 0; i < 7; i++) {
-            if (state[5][i] == 0) {
+            if (is_available_column(i, node)) {
                 // possibe child
-                let child = JSON.parse(JSON.stringify(state));
-                for (let j = 0; j < 6; j++) {
-                    if (child[j][i] == 0) {
-                        child[j][i] = AI;
-                        break;
-                    }
-                }
-
-                let f = alphabeta(child, depth - 1, alpha, beta, false);
+                let child = JSON.parse(JSON.stringify(node));
+                child = add_to_column(i, AI, child);
+                let value = alphabeta(child, depth - 1, alpha, beta, false);
                 if (depth == 5) {
-                    console.log("child " + i + ": " + f[1] + "\n");
+                    console.log("child " + i + ": " + value[1] + "\n");
                 }
-                if (v[0] == -1 || f[1] > v[1]) {
-                    v[0] = i;
-                    v[1] = f[1];
-                    alpha = f[1];
+                if (best[0] == -1 || value[1] > best[1]) {
+                    best[0] = i;
+                    best[1] = value[1];
+                    alpha   = value[1];
                 }
                 if (beta <= alpha) {
                     break;
                 }
             }
         }
-        return v;
-    } else {
-        let v = [-1, 999990000, -1]; // index, value , depth
+        return best;
+    } 
+    else {
+        let best = [-1, 999990000]; // index, value
         for (let i = 0; i < 7; i++) {
-            if (state[5][i] == 0) {
+            if (is_available_column(i, node)) {
                 // possibe child
-                let child = JSON.parse(JSON.stringify(state));
-                for (let j = 0; j < 6; j++) {
-                    if (child[j][i] == 0) {
-                        child[j][i] = HUMAN;
-                        break;
-                    }
-                }
-                let f = alphabeta(child, depth - 1, alpha, beta, true);
-                if (v[0] == -1 || f[1] < v[1]) {
-                    v[0] = i;
-                    v[1] = f[1];
-                    beta = f[1];
+                let child = JSON.parse(JSON.stringify(node));
+                child = add_to_column(i, HUMAN, child);
+                let value = alphabeta(child, depth - 1, alpha, beta, true);
+                if (best[0] == -1 || value[1] < best[1]) {
+                    best[0] = i;
+                    best[1] = value[1];
+                    beta = value[1];
                 }
                 if (beta <= alpha) {
                     break;
                 }
             }
         }
-        return v;
+        return best;
     }
 };
 
@@ -236,7 +209,7 @@ const random_move = () => {
     let rand_index;
     while (!found) {
         rand_index = Math.floor(Math.random() * 7);
-        if (matrix[5][rand_index] == 0) {
+        if (is_available_column(rand_index, board)) {
             found = true;
         }
     }
@@ -244,10 +217,7 @@ const random_move = () => {
 };
 
 const AI_Move = () => {
-    turns = turns + 1;
-    let [index, value] = alphabeta(matrix, 5, -1000000000, 1000000000, true);
-    turns = turns + 1;
-    //console.log("index = " + index + "  value = " + value);
+    let [index, value] = alphabeta(board, 5, -1000000000, 1000000000, true);
     setIndex(index);
 };
 
@@ -255,7 +225,8 @@ const easy_mode = () => {
     if (swap < 2) {
         AI_Move();
         swap++;
-    } else {
+    } 
+    else {
         random_move();
         swap = 1;
     }
@@ -265,7 +236,8 @@ const medium_mode = () => {
     if (swap < 3) {
         AI_Move();
         swap++;
-    } else {
+    } 
+    else {
         random_move();
         swap = 1;
     }
@@ -286,9 +258,10 @@ async function robot_turn() {
     
         lines[i].addEventListener("mouseover", function () {
             if (start) {
-                if (matrix[5][i] == 0)
+                if (is_available_column(i, board))
                     lines[i].style.backgroundColor = "var(--pointSelection)";
-                else lines[i].style.backgroundColor = "var(--robot)";
+                else
+                    lines[i].style.backgroundColor = "var(--robot)";
             }
         });
     
@@ -298,15 +271,17 @@ async function robot_turn() {
     }
     await delay(500);
 
-    if (hard) {
-        hard_mode();
-    } else if (easy) {
+    if (difficulty == EASY) {
         easy_mode();
-    } else if (meduim) {
+    }
+    else if (difficulty == MEDIUM) {
         medium_mode();
     }
+    else if (difficulty == HARD) {
+        hard_mode();
+    }
 
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < COLUMN; i++) {
         lines[i].addEventListener("click", function () {
             let index = $(this).index();
             click_action(index);
@@ -314,61 +289,45 @@ async function robot_turn() {
     }
 };
 
-const go_default = (s = false, h = true, e = true, m = false) => {
-    if (!s) {
-        start_ind = true;
+const go_default = () => {
+    if (!start) {
+        start_indicator = true;
         start_button.children[0].innerHTML = "Start";
-        if (h) {
-            human = true;
-            robot = false;
+        if (difficulty == HUMAN) {
             human_button.style.backgroundColor = "var(--human-selected)";
             robot_button.style.backgroundColor = "var(--robot)";
             difficulty_section.classList.add("hidden");
-        } else {
-            human = false;
-            robot = true;
+        } 
+        else {
             human_button.style.backgroundColor = "var(--human)";
             robot_button.style.backgroundColor = "var(--robot-selected)";
             difficulty_section.classList.remove("hidden");
-            difficulty_section.children[0].children[0].style.transform =
-                "matrix(2, 0, 0, 2, 0, -20)";
-            difficulty_section.children[1].children[0].style.transform =
-                "matrix(1, 0, 0, 1, 0, 0)";
-            difficulty_section.children[2].children[0].style.transform =
-                "matrix(1, 0, 0, 1, 0, 0)";
+            difficulty_section.children[0].children[0].style.transform = "matrix(2, 0, 0, 2, 0, -20)";
+            difficulty_section.children[1].children[0].style.transform = "matrix(1, 0, 0, 1, 0, 0)";
+            difficulty_section.children[2].children[0].style.transform = "matrix(1, 0, 0, 1, 0, 0)";
         }
 
-        if (e) {
-            [easy, meduim, hard] = [true, false, false];
-            difficulty_section.children[0].children[0].style.transform =
-                "matrix(2, 0, 0, 2, 0, -20)";
-            difficulty_section.children[1].children[0].style.transform =
-                "matrix(1, 0, 0, 1, 0, 0)";
-            difficulty_section.children[2].children[0].style.transform =
-                "matrix(1, 0, 0, 1, 0, 0)";
-        } else if (m) {
-            [easy, meduim, hard] = [false, true, false];
-            difficulty_section.children[0].children[0].style.transform =
-                "matrix(1, 0, 0, 1, 0, 0)";
-            difficulty_section.children[1].children[0].style.transform =
-                "matrix(2, 0, 0, 2, 0, -20)";
-            difficulty_section.children[2].children[0].style.transform =
-                "matrix(1, 0, 0, 1, 0, 0)";
-        } else {
-            [easy, meduim, hard] = [false, false, true];
-            difficulty_section.children[0].children[0].style.transform =
-                "matrix(1, 0, 0, 1, 0, 0)";
-            difficulty_section.children[1].children[0].style.transform =
-                "matrix(1, 0, 0, 1, 0, 0)";
-            difficulty_section.children[2].children[0].style.transform =
-                "matrix(2, 0, 0, 2, 0, -20)";
+        if (difficulty == EASY) {
+            difficulty_section.children[0].children[0].style.transform = "matrix(2, 0, 0, 2, 0, -20)";
+            difficulty_section.children[1].children[0].style.transform = "matrix(1, 0, 0, 1, 0, 0)";
+            difficulty_section.children[2].children[0].style.transform = "matrix(1, 0, 0, 1, 0, 0)";
+        } 
+        else if (difficulty == MEDIUM) {
+            difficulty_section.children[0].children[0].style.transform = "matrix(1, 0, 0, 1, 0, 0)";
+            difficulty_section.children[1].children[0].style.transform = "matrix(2, 0, 0, 2, 0, -20)";
+            difficulty_section.children[2].children[0].style.transform = "matrix(1, 0, 0, 1, 0, 0)";
+        } 
+        else {
+            difficulty_section.children[0].children[0].style.transform = "matrix(1, 0, 0, 1, 0, 0)";
+            difficulty_section.children[1].children[0].style.transform = "matrix(1, 0, 0, 1, 0, 0)";
+            difficulty_section.children[2].children[0].style.transform = "matrix(2, 0, 0, 2, 0, -20)";
         }
-    } else {
-        start = true;
-        if (start_ind) {
+    } 
+    else {
+        if (start_indicator) {
             start_button.style.backgroundColor = "var(--stop)";
             start_button.children[0].innerHTML = "Stop";
-            start_ind = false;
+            start_indicator = false;
         }
     }
 };
@@ -392,35 +351,32 @@ const start_timer = (start) => {
                 "Stop " + minutes + ":" + seconds;
             game_time = [minutes, seconds];
         }, 1000);
-    } else {
+    } 
+    else {
         clearInterval(count_down_interval);
         start_button.style.backgroundColor = "var(--start)";
     }
 };
 
-const fill = (x, y, color) => {
-    if (color == HUMAN)
-        lines[y].children[x].children[0].style.backgroundColor =
-            "var(--human-selected)";
-    else if (color == AI)
-        lines[y].children[x].children[0].style.backgroundColor =
-            "var(--robot-selected)";
+const fill = (x, y, player) => {
+    if (player == HUMAN)
+        lines[y].children[x].children[0].style.backgroundColor = "var(--human-selected)";
+    else if (player == AI)
+        lines[y].children[x].children[0].style.backgroundColor = "var(--robot-selected)";
     else
-        lines[y].children[x].children[0].style.backgroundColor =
-            "var(--background)";
+        lines[y].children[x].children[0].style.backgroundColor = "var(--background)";
 };
 
 const winner_boxs = (x, y, clear) => {
     if (clear) {
-        lines[y].children[x].style.backgroundColor =
-            "var(--pointColors)";
-    } else
-        lines[y].children[x].style.backgroundColor =
-            "var(--winning-line)";
+        lines[y].children[x].style.backgroundColor = "var(--pointColors)";
+    } 
+    else
+        lines[y].children[x].style.backgroundColor = "var(--winning-line)";
 }
 
 
-const blinking = (winner) => {
+const blinking = (color) => {
     if (blinking_counter > 0) {
         animation_swap = 1 - animation_swap;
         for (let i = 0; i < 4; i++) {
@@ -428,7 +384,7 @@ const blinking = (winner) => {
                 fill(5 - winning_chain[i][0], winning_chain[i][1], -1);
             }
             else {
-                fill(5 - winning_chain[i][0], winning_chain[i][1], winner);
+                fill(5 - winning_chain[i][0], winning_chain[i][1], color);
             }
         }
         blinking_counter = blinking_counter - 1;
@@ -436,33 +392,34 @@ const blinking = (winner) => {
 
 }
 
-let interval;
-
-const winning_animation = (winner) => {
-    if (winner == HUMAN && human) {
+const winning_animation = (color) => {
+    if (winner == HUMAN && difficulty == HUMAN) {
         alert("Player 1 won in " + game_time[0] + ":" + game_time[1]);
-    } else if (winner == AI && human) {
+    } 
+    else if (winner == AI && difficulty == HUMAN) {
         alert("Player 2 won in " + game_time[0] + ":" + game_time[1]);
-    } else if (winner == AI) {
+    } 
+    else if (winner == AI) {
         alert("AI won in " + game_time[0] + ":" + game_time[1]);
-    } else
+    } 
+    else
         alert("You won in " + game_time[0] + ":" + game_time[1]);
 
     for (let i = 0; i < 4; i++)
         winner_boxs(5 - winning_chain[i][0], winning_chain[i][1], false);
 
     animation_swap = 0;
-    interval = setInterval(blinking, 750, winner);
+    interval = setInterval(blinking, 750, color);
 }
 
 const setIndex = (index) => {
     let i;
-    pll = 3 - pll;
+    round = 3 - round;
     for (i = 0; i < 6; i++) {
-        if (matrix[i][index] == 0) {
-            matrix[i][index] = pll;
-            fill(5 - i, index, pll);
-            winner = check(i, index, matrix);
+        if (board[i][index] == 0) {
+            board[i][index] = round;
+            fill(5 - i, index, round);
+            winner = check(i, index, board);
             if (winner != 0) {
                 winning_animation(winner);
                 start_action(false);
@@ -472,8 +429,6 @@ const setIndex = (index) => {
     }
 };
 
-let player_swap = 1;
-
 const start_action = (clear) => {
     if (clear) {
         blinking_counter = 6;
@@ -482,36 +437,37 @@ const start_action = (clear) => {
         clearInterval(interval);
         for (let i = 0; i < 4; i++)
             winner_boxs(5 - winning_chain[i][0], winning_chain[i][1], true);
-        for (let i = 0; i < 6; i++)
-            for (let j = 0; j < 7; j++) {
-                lines[j].children[i].children[0].style.backgroundColor =
-                    "var(--background)";
-                matrix[i][j] = 0;
+        for (let i = 0; i < ROW; i++)
+            for (let j = 0; j < COLUMN; j++) {
+                lines[j].children[i].children[0].style.backgroundColor = "var(--background)";
+                board[i][j] = 0;
             }
         if (!start) {
             player_swap = 1 - player_swap;
             if (player_swap == 0) {
-                pll = AI;
-            } else if (player_swap == 1 && human)
-                pll = HUMAN;
+                round = AI;
+            } else if (player_swap == 1 && difficulty == HUMAN)
+                round = HUMAN;
             else if (player_swap == 1) {
-                pll = HUMAN;
+                round = HUMAN;
                 robot_turn();
             }
         }
     }
     start = !start;
     start_timer(start);
-    go_default(start, human, easy, meduim);
+    go_default();
     winner = 0;
 };
 
 human_button.addEventListener("click", function () {
-    go_default(start, true);
+    difficulty = HUMAN;
+    go_default();
 });
 
 robot_button.addEventListener("click", function () {
-    go_default(start, false);
+    difficulty = EASY;
+    go_default();
 });
 
 start_button.addEventListener("click", function () {
@@ -529,38 +485,33 @@ start_button.addEventListener("mouseout", function () {
 });
 
 difficulty_section.children[0].addEventListener("click", function () {
-    go_default(start, human);
+    difficulty = EASY;
+    go_default();
 });
 
 difficulty_section.children[1].addEventListener("click", function () {
-    go_default(start, human, false, true);
+    difficulty = MEDIUM;
+    go_default();
 });
 
 difficulty_section.children[2].addEventListener("click", function () {
-    go_default(start, human, false, false);
+    difficulty = HARD;
+    go_default();
 });
-
-// function sleep(milliseconds) {
-//     const date = Date.now();
-//     let currentDate = null;
-//     do {
-//       currentDate = Date.now();
-//     } while (currentDate - date < milliseconds);
-//   }
 
 const click_action = (index) => {
     if (start) {
-        if (human) setIndex(index);
-        else if (!human && winner == 0) {
+        if (difficulty == HUMAN) setIndex(index);
+        else if (difficulty != HUMAN && winner == 0) {
             setIndex(index);
             if (winner == 0) robot_turn();
         }
         if (winner != 0) start_action(false);
-        console.log(evaluation(matrix));
+        console.log(evaluation(board));
     }
 }
 
-for (let i = 0; i < 7; i++) {
+for (let i = 0; i < COLUMN; i++) {
     lines[i].addEventListener("click", function () {
         let index = $(this).index();
         click_action(index);
@@ -568,7 +519,7 @@ for (let i = 0; i < 7; i++) {
 
     lines[i].addEventListener("mouseover", function () {
         if (start) {
-            if (matrix[5][i] == 0)
+            if (is_available_column(i, board))
                 lines[i].style.backgroundColor = "var(--pointSelection)";
             else lines[i].style.backgroundColor = "var(--robot)";
         }

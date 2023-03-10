@@ -1,32 +1,30 @@
 
 :root {
-    --background: lightgray; /* accessible everywhere */
+    --background: #BEDCFE; /* accessible everywhere */
     --pointColors: white;
-    --pointSelection: lightGreen;
+    --pointSelection: #055cb8;
     --easy: green;
     --medium: yellow;
     --hard: red;
     --start: rgb(87, 190, 87);
     --start-selected: green;
-    --human: lightblue;
-    --robot: rgb(255, 151, 151);
-    --human-selected: blue;
-    --robot-selected: red;
+    --human: #d3eb9b;
+    --robot: #f4ab86;
+    --human-selected: #95c623;
+    --robot-selected: #ff8345;
     --stop : orange;
     --stop-selected : rgb(255, 81, 0);
-    --winning-line : rgb(215, 156, 233);
+    --winning-line : #055cb8;
 }
 
 body{
     background-color: var(--background);
     margin: 0;
     user-select: none;
-    overflow: hidden;   
 }
 
 .main {
     width: 1000px;
-    height: 1000px;
     margin: auto;
 }
 
