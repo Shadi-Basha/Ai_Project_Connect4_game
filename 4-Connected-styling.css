@@ -14,16 +14,18 @@
     --robot-selected: red;
     --stop : orange;
     --stop-selected : rgb(255, 81, 0);
+    --winning-line : rgb(215, 156, 233);
 }
 
 body{
     background-color: var(--background);
     margin: 0;
     user-select: none;
+    overflow: hidden;   
 }
 
 .main {
-    width: 1100px;
+    width: 1000px;
     height: 1000px;
     margin: auto;
 }
@@ -36,8 +38,8 @@ body{
     display: grid;
     grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
     gap: 0;
-    width: 840px;
-    height: 720px;
+    width: 700px;
+    height: 588px;
 }
 
 
@@ -50,10 +52,10 @@ body{
 }
 
 .point{
-    width: 104px;
-    height: 104px;
-    margin-bottom: 8px;
-    margin-top: 8px;
+    width: 90px;
+    height: 90px;
+    margin-bottom: 4px;
+    margin-top: 4px;
     margin-left: auto;
     margin-right: auto;
     background: var(--pointColors);
@@ -61,9 +63,9 @@ body{
 }
 
 .space{
-    width: 85px;
-    height: 85px;
-    transform: matrix(1, 0, 0, 1, 0, 9.5);
+    width: 75px;
+    height: 75px;
+    transform: matrix(1, 0, 0, 1, 0, 7);
     margin-left: auto;
     margin-right: auto;
     background-color: var(--background);
@@ -72,11 +74,8 @@ body{
 
 .settings{
     position: relative; 
-    /* display: grid;
-    grid-template-columns: 1fr;
-    gap: 0px; */
     width: 275px;
-    height: 720px;
+    height: 588px;
 }
 
 .vs{
@@ -123,7 +122,7 @@ body{
 
 .difficulty{
     width: 220px;
-    height: 110px;
+    height: 90px;   
     margin-left: auto;
     margin-right: auto;
     margin-top: 20px;

@@ -6,7 +6,7 @@
 .title{
     font-family: SuperMario;
     text-align: center;
-    font-size: 60px;
+    font-size: 40px;
 }
 
 .text-font-center{
@@ -15,13 +15,14 @@
 }
 
 .difficulty-text{
-    padding-top: 45px;
+    padding-top: 37px;
     font-size: 20px;
 }
 
 
 .settings-title{
     height: fit-content;
+    font-size: 22px;
 }
 
 .start-text{
